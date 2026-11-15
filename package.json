@@ -1,0 +1,24 @@
+{
+  "name": "hamoudix-motion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HamoudiX channel motion-graphics kit (Remotion) - same style as SkyGaming-Motion",
+  "scripts": {
+    "studio": "remotion studio",
+    "render:showcase": "remotion render HamoudiXShowcase out/HamoudiX_Showcase.mp4",
+    "render:intro": "remotion render HamoudiXIntro out/HamoudiX_Intro.mp4",
+    "still:thumb": "remotion still Thumbnail out/HamoudiX_Thumbnail.jpg"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.542",
+    "@remotion/fonts": "^4.0.542",
+    "lucide-react": "0.460.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.542"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.6.3"
+  }
+}
