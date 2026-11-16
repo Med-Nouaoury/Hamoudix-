@@ -213,6 +213,24 @@ const ShotA: React.FC<{dur: number}> = ({dur}) => {
   );
 };
 
+/* teaser mosaic: real game panels, dark + blurred, scrolling (no reveal yet) */
+const PANELS = ['p_heli', 'p_bike', 'p_car', 'p_boat', 'p_gunman', 'p_jason_lucia'];
+const Mosaic: React.FC = () => {
+  const f = useCurrentFrame();
+  return (
+    <AbsoluteFill style={{opacity: 0.38, filter: 'blur(5px) saturate(1.2)', overflow: 'hidden'}}>
+      {[0, 1, 2].map((col) => (
+        <div key={col} style={{position: 'absolute', left: col * 370 - 10, top: (col % 2 ? -1 : 1) * (f * 2.2) - 600, display: 'flex', flexDirection: 'column', gap: 18}}>
+          {Array.from({length: 8}).map((_, k) => (
+            <Img key={k} src={staticFile(`art/${PANELS[(k + col * 2) % PANELS.length]}.jpg`)} style={{width: 350, height: 300, objectFit: 'cover', borderRadius: 18}} />
+          ))}
+        </div>
+      ))}
+      <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(14,4,24,.7), rgba(14,4,24,.2) 50%, rgba(14,4,24,.8))'}} />
+    </AbsoluteFill>
+  );
+};
+
 /* ================= SHOT B — "أقوى لعبة في التاريخ" : #1 locked card ================= */
 const ShotB: React.FC<{dur: number}> = ({dur}) => {
   const f = useCurrentFrame();
@@ -226,6 +244,7 @@ const ShotB: React.FC<{dur: number}> = ({dur}) => {
   return (
     <Shot dur={dur}>
       <BG tint={C.violet} rays={0.18} />
+      <Mosaic />
       <div style={{position: 'absolute', left: 0, right: 0, top: 210, textAlign: 'center', fontFamily: fonts.arDisplay, fontSize: 92, color: '#fff', direction: 'rtl',
         opacity: prog(f, 0, 10), textShadow: '0 8px 0 #12021f'}}>
         <Crown size={86} color={C.gold} style={{verticalAlign: 'middle', marginLeft: 16, filter: `drop-shadow(0 0 14px ${C.gold})`}} />
@@ -257,45 +276,60 @@ const ShotB: React.FC<{dur: number}> = ({dur}) => {
     </Shot>
   );
 };
+/* ---------- art backgrounds from the real cover ---------- */
+const CoverBG: React.FC<{src?: string; blur?: number; dim?: number; tint?: string; rays?: number; shake?: number}> = ({src = 'art/gta6_ultimate.jpg', blur = 22, dim = 0.5, tint = C.pink, rays = 0, shake = 0}) => {
+  const f = useCurrentFrame();
+  return (
+    <AbsoluteFill style={{overflow: 'hidden', background: C.night, transform: `translate(${Math.sin(f * 2.3) * shake}px, ${Math.cos(f * 1.7) * shake}px)`}}>
+      <Img src={staticFile(src)} style={{position: 'absolute', left: '50%', top: '50%', height: '115%', transform: `translate(-50%,-50%) scale(${1.05 + f * 0.0015})`,
+        filter: `blur(${blur}px) brightness(${dim}) saturate(1.35)`}} />
+      <AbsoluteFill style={{background: `radial-gradient(ellipse 80% 55% at 50% 40%, ${tint}55, transparent 70%), linear-gradient(180deg, rgba(14,4,24,.35), rgba(14,4,24,.15) 40%, rgba(14,4,24,.85) 100%)`}} />
+      <AbsoluteFill style={{opacity: rays, mixBlendMode: 'screen', transform: `rotate(${f * 0.5}deg) scale(2.4)`,
+        background: 'repeating-conic-gradient(from 0deg at 50% 42%, rgba(255,255,255,.22) 0deg 5deg, transparent 5deg 16deg)'}} />
+      <Embers n={35} />
+    </AbsoluteFill>
+  );
+};
 
-/* ================= SHOT C — THE REVEAL: GTA VI ================= */
+/* ================= SHOT C — THE REVEAL: real cover flips in 3D ================= */
 const ShotC: React.FC<{dur: number}> = ({dur}) => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
   const hit = B.gta - B.wahiya;
   const pre = f < hit;
-  const s = spr(f, fps, hit, {damping: 8, stiffness: 200});
+  const s = spr(f, fps, hit, {damping: 11, stiffness: 120});
   const tense = prog(f, 0, hit);
-  const letters = ['G', 'T', 'A'];
+  const ry = interpolate(s, [0, 1], [100, -10]) + Math.sin((f - hit) / 14) * 4;
+  const rx = interpolate(s, [0, 1], [25, 4]);
+  const sheen = prog(f, hit + 8, hit + 30, ease.inOut);
+  const W0 = 800;
   return (
-    <Shot dur={dur} zoom={0.12}>
+    <Shot dur={dur} zoom={0.1}>
       <AbsoluteFill style={{background: pre ? '#05010a' : undefined}}>
-        {!pre && <BG tint={C.pink} rays={0.45} shake={f < hit + 14 ? 22 * (1 - (f - hit) / 14) : 0} />}
+        {!pre && <CoverBG rays={0.4} shake={f < hit + 14 ? 22 * (1 - (f - hit) / 14) : 0} />}
         {pre && (
           <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
-            {/* tension: a dot of light growing, heartbeat */}
-            <div style={{width: 40 + tense * 220, height: 40 + tense * 220, borderRadius: '50%', background: `radial-gradient(circle, #fff, ${C.pink} 40%, transparent 70%)`,
+            <div style={{width: 40 + tense * 240, height: 40 + tense * 240, borderRadius: '50%', background: `radial-gradient(circle, #fff, ${C.pink} 40%, transparent 70%)`,
               opacity: 0.4 + 0.6 * Math.abs(Math.sin(f / 3)), transform: 'translateY(-200px)'}} />
           </AbsoluteFill>
         )}
         {!pre && (
-          <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', transform: 'translateY(-180px)'}}>
-            <div style={{display: 'flex', alignItems: 'flex-end', direction: 'ltr', transform: `scale(${interpolate(s, [0, 1], [3, 1])})`}}>
-              {letters.map((l, i) => (
-                <span key={i} style={{fontFamily: fonts.display, fontSize: 330, lineHeight: 0.85, color: '#fff', textShadow: neon(C.cyan, 1.2), letterSpacing: 4,
-                  display: 'inline-block', transform: `translateY(${(1 - spr(f, fps, hit + i * 2, {damping: 9, stiffness: 260})) * -300}px)`}}>{l}</span>
-              ))}
-              <span style={{fontFamily: fonts.display, fontSize: 420, lineHeight: 0.85, marginLeft: 26,
-                background: `linear-gradient(160deg, #ffd1ec, ${C.pink} 50%, #8a0f62)`, WebkitBackgroundClip: 'text', color: 'transparent',
-                filter: `drop-shadow(0 0 30px ${C.pink}) drop-shadow(0 0 70px ${C.pink})`,
-                transform: `scale(${spr(f, fps, hit + 8, {damping: 7, stiffness: 240})}) rotate(${(1 - spr(f, fps, hit + 8)) * 40}deg)`, display: 'inline-block'}}>VI</span>
+          <div style={{position: 'absolute', left: SW / 2, top: 760, transform: `translate(-50%,-50%) perspective(1800px) rotateY(${ry}deg) rotateX(${rx}deg) scale(${interpolate(s, [0, 1], [0.35, 1])})`,
+            filter: `drop-shadow(0 0 50px ${C.pink}aa) drop-shadow(0 50px 60px rgba(0,0,0,.7))`}}>
+            <div style={{position: 'relative', width: W0, height: W0, borderRadius: 18, overflow: 'hidden', border: '4px solid rgba(255,255,255,.85)'}}>
+              <Img src={staticFile('art/gta6_ultimate.jpg')} style={{width: '100%', height: '100%', display: 'block'}} />
+              <div style={{position: 'absolute', inset: 0, background: `linear-gradient(105deg, transparent ${sheen * 140 - 40}%, rgba(255,255,255,.6) ${sheen * 140 - 25}%, transparent ${sheen * 140 - 10}%)`}} />
             </div>
-            <div style={{fontFamily: fonts.label, fontWeight: 600, fontSize: 46, color: '#fff', letterSpacing: '0.5em', marginTop: 30, opacity: prog(f, hit + 12, hit + 22)}}>
-              19 • 11 • 2026
-            </div>
-          </AbsoluteFill>
+          </div>
         )}
-        <Burst at={hit} seed="c" cy={780} n={120} />
+        {!pre && (
+          <div style={{position: 'absolute', left: 0, right: 0, top: 1215, textAlign: 'center', opacity: prog(f, hit + 10, hit + 20),
+            transform: `translateY(${(1 - prog(f, hit + 10, hit + 22)) * 40}px)`}}>
+            <div style={{display: 'inline-block', fontFamily: fonts.display, fontSize: 92, color: '#fff', letterSpacing: 8, background: C.pink, padding: '4px 36px',
+              borderRadius: 18, boxShadow: neon(C.pink, 0.8)}}>19.11.2026</div>
+          </div>
+        )}
+        <Burst at={hit} seed="c" cy={760} n={120} />
         <FlashAt at={hit} max={1} len={12} />
       </AbsoluteFill>
     </Shot>
@@ -312,7 +346,7 @@ const ShotD: React.FC<{dur: number}> = ({dur}) => {
   const gold = prog(f, os, os + 10);
   return (
     <Shot dur={dur}>
-      <BG tint={gold > 0 ? '#ffb000' : C.pink} rays={0.15 + 0.4 * gold} />
+      <CoverBG src="art/p_jason_lucia.jpg" blur={8} dim={0.55} tint={gold > 0 ? '#ffb000' : C.pink} rays={0.1 + 0.4 * gold} />
       <Mascot x={SW / 2} y={1300} h={760} delay={0} />
       {f >= ak && (
         <div style={{position: 'absolute', left: 0, right: 0, top: 250, textAlign: 'center', fontFamily: fonts.arDisplay, fontSize: 210, color: '#fff', direction: 'rtl',
@@ -402,7 +436,7 @@ const ShotF: React.FC<{dur: number}> = ({dur}) => {
   const eps = [1, 2, 3];
   return (
     <Shot dur={dur} zoom={0.04}>
-      <BG tint={C.pink} rays={0.2} />
+      <CoverBG blur={26} dim={0.45} rays={0.2} />
       <div style={{position: 'absolute', left: 0, right: 0, top: 250, textAlign: 'center', direction: 'rtl'}}>
         <div style={{fontFamily: fonts.label, fontWeight: 600, fontSize: 46, color: C.cyan, letterSpacing: '0.45em', direction: 'ltr', opacity: prog(f, 0, 10)}}>COMING SOON</div>
         <div style={{fontFamily: fonts.arDisplay, fontSize: 130, color: '#fff', lineHeight: 1.1, transform: `scale(${spr(f, fps, 2, {damping: 10})})`,
@@ -414,9 +448,14 @@ const ShotF: React.FC<{dur: number}> = ({dur}) => {
         return (
           <div key={i} style={{position: 'absolute', left: SW / 2 + (i - 1) * 330, top: 640, transform: `translate(-50%,0) rotate(${(i - 1) * 6}deg) translateY(${(1 - s) * 500 + Math.abs(i - 1) * 40}px)`,
             width: 290, height: 380, borderRadius: 28, background: `linear-gradient(160deg, ${C.plum}, ${C.night})`, border: `4px solid ${i === 0 ? C.pink : C.cyan}`,
-            boxShadow: i === 0 ? neon(C.pink, 0.8) : '0 20px 40px rgba(0,0,0,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-            <div style={{fontFamily: fonts.display, fontSize: 130, color: '#fff', lineHeight: 1}}>EP{e}</div>
-            <div style={{fontFamily: fonts.arDisplay, fontSize: 46, color: i === 0 ? C.pink : C.cyan}}>{i === 0 ? 'قريباً 🔥' : '🔒'}</div>
+            boxShadow: i === 0 ? neon(C.pink, 0.8) : '0 20px 40px rgba(0,0,0,.5)', overflow: 'hidden'}}>
+            <Img src={staticFile(`art/${['p_jason_lucia', 'p_heli', 'p_car'][i]}.jpg`)} style={{position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              filter: i === 0 ? 'none' : 'grayscale(.4) brightness(.55) blur(2px)'}} />
+            <div style={{position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(14,4,24,.9))'}} />
+            <div style={{position: 'absolute', bottom: 16, left: 0, right: 0, textAlign: 'center'}}>
+              <div style={{fontFamily: fonts.display, fontSize: 110, color: '#fff', lineHeight: 1}}>EP{e}</div>
+              <div style={{fontFamily: fonts.arDisplay, fontSize: 44, color: i === 0 ? C.pink : C.cyan}}>{i === 0 ? 'قريباً 🔥' : '🔒'}</div>
+            </div>
           </div>
         );
       })}
