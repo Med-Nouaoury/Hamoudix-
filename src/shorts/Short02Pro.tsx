@@ -1,5 +1,5 @@
 import React from 'react';
-import {AbsoluteFill, Audio, Img, Sequence, interpolate, random, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, random, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {Pointer} from 'lucide-react';
 import {geoNaturalEarth1, geoPath, geoCentroid} from 'd3-geo';
 import {feature} from 'topojson-client';
@@ -249,46 +249,85 @@ const Counter: React.FC<{from: number; to: number}> = ({from, to}) => {
       textShadow: `0 0 40px ${RED}, 0 0 90px ${RED}88`}}>{n.toLocaleString('en-US')}</div>
   );
 };
-const Burning: React.FC<{label: string; color: string; at: number; size: number; font: string; italic?: boolean}> = ({label, color, at, size, font, italic}) => {
+/* real console burning: flames rise, console chars, 503 stamp */
+const Flames: React.FC<{seed: string; k: number; w: number}> = ({seed, k, w}) => {
+  const f = useCurrentFrame();
+  if (k <= 0) return null;
+  return (
+    <>
+      {Array.from({length: 22}).map((_, i) => {
+        const r = (q: string) => random(`fl${seed}${q}${i}`);
+        const h = (160 + r('h') * 300) * k * (0.7 + 0.3 * Math.sin(f / 2 + i));
+        return <div key={i} style={{position: 'absolute', left: (i / 22) * w - 20, bottom: 30, width: 70 + r('w') * 70, height: h, borderRadius: '50% 50% 20% 20%',
+          background: 'linear-gradient(0deg, #ff2a00, #ff9a00 45%, #ffe08a 75%, rgba(255,240,180,0))', filter: 'blur(12px)', opacity: 0.9, mixBlendMode: 'screen',
+          transform: `skewX(${Math.sin(f / 3 + i) * 12}deg)`}} />;
+      })}
+    </>
+  );
+};
+const BurningConsole: React.FC<{src: string; label: string; color: string; at: number; h: number}> = ({src, label, color, at, h}) => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
-  const s = spr(f, fps, at - 10, {damping: 12});
-  const burn = prog(f, at, at + 26);
+  const s = spr(f, fps, at - 12, {damping: 12});
+  const burn = prog(f, at, at + 22);
+  const stamp = f >= at + 10 ? spr(f, fps, at + 10, {damping: 8, stiffness: 300}) : 0;
+  const shake = f >= at && f < at + 14 ? Math.sin(f * 3) * 10 * (1 - (f - at) / 14) : 0;
   return (
-    <div style={{position: 'relative', transform: `scale(${s}) rotate(${burn * (italic ? 3 : -3)}deg)`, display: 'flex', justifyContent: 'center'}}>
-      {/* flames */}
-      {burn > 0 && Array.from({length: 26}).map((_, i) => {
-        const r = (k: string) => random(`fl${label}${k}${i}`);
-        const h = (120 + r('h') * 220) * burn * (0.7 + 0.3 * Math.sin(f / 2 + i));
-        return <div key={i} style={{position: 'absolute', left: `${(i / 26) * 100}%`, bottom: '30%', width: 60 + r('w') * 60, height: h, marginLeft: -40,
-          borderRadius: '50% 50% 20% 20%', background: `linear-gradient(0deg, #ff3b00, #ffb000 60%, rgba(255,240,180,0))`, filter: 'blur(10px)', opacity: 0.85,
-          mixBlendMode: 'screen', transform: `skewX(${Math.sin(f / 3 + i) * 10}deg)`}} />;
-      })}
-      <div style={{position: 'relative', fontFamily: font, fontWeight: 700, fontStyle: italic ? 'italic' : 'normal', fontSize: size, color: burn > 0 ? '#ffd9a0' : '#fff',
-        letterSpacing: 2, filter: `brightness(${1 - 0.7 * burn}) drop-shadow(0 0 ${20 + burn * 40}px ${burn > 0 ? '#ff6a00' : color})`,
-        WebkitTextStroke: `3px ${color}`}}>{label}</div>
+    <div style={{position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: `scale(${s}) translateX(${shake}px)`}}>
+      <div style={{position: 'relative'}}>
+        <Img src={staticFile(src)} style={{height: h, display: 'block', filter: `brightness(${1 - 0.65 * burn}) sepia(${burn * 0.6}) drop-shadow(0 0 ${30 + burn * 50}px ${burn > 0 ? '#ff5a00' : color})`}} />
+        <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: h}}><Flames seed={label} k={burn} w={h * 0.6} /></div>
+        {stamp > 0 && (
+          <div style={{position: 'absolute', left: '50%', top: '42%', transform: `translate(-50%,-50%) rotate(-14deg) scale(${interpolate(stamp, [0, 1], [2.4, 1])})`,
+            border: `8px solid ${RED}`, color: RED, background: 'rgba(0,0,0,.55)', fontFamily: fonts.display, fontSize: 96, padding: '0 22px', lineHeight: 1.1,
+            letterSpacing: 4, boxShadow: `0 0 30px ${RED}`}}>503</div>
+        )}
+      </div>
+      <div style={{marginTop: 14, fontFamily: fonts.label, fontWeight: 700, fontSize: 44, color: '#fff', letterSpacing: '0.2em', opacity: 0.9}}>{label}</div>
     </div>
+  );
+};
+/* gameplay screens multiplying as players pour in */
+const ScreenWall: React.FC<{from: number; to: number}> = ({from, to}) => {
+  const f = useCurrentFrame();
+  const k = prog(f, from, to, ease.in);
+  const n = [1, 2, 3, 4, 6][Math.min(4, Math.floor(k * 5))];
+  const cw = SW / n, ch = cw * 1.25;
+  const rows = Math.ceil(SH / ch) + 1;
+  return (
+    <AbsoluteFill style={{overflow: 'hidden', filter: 'saturate(1.2) contrast(1.05)'}}>
+      {Array.from({length: n * rows}).map((_, i) => {
+        const x = (i % n) * cw, y = Math.floor(i / n) * ch;
+        return (
+          <div key={`${n}-${i}`} style={{position: 'absolute', left: x, top: y, width: cw - 4, height: ch - 4, overflow: 'hidden'}}>
+            <OffthreadVideo src={staticFile('clips/gta6_robbery.mp4')} muted startFrom={(i * 53) % 420} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+          </div>
+        );
+      })}
+      <AbsoluteFill style={{background: 'radial-gradient(ellipse 70% 40% at 50% 45%, rgba(40,0,6,.55), rgba(10,0,2,.85) 80%)'}} />
+    </AbsoluteFill>
   );
 };
 const ServersShot: React.FC<{dur: number}> = ({dur}) => {
   const f = useCurrentFrame();
   const L = (x: number) => x - B.r1;
   const showStores = f >= L(B.stores);
+  const counting = !showStores && f >= L(B.count);
   return (
     <Cam dur={dur} shakeAt={[L(B.infijar), L(B.ps), L(B.xb)]}>
       <AbsoluteFill style={{background: 'radial-gradient(ellipse 80% 60% at 50% 45%, #3a0008, #050102 75%)'}} />
-      <DataRain />
+      {counting ? <ScreenWall from={L(B.count)} to={L(B.fifty) + 40} /> : <DataRain />}
       <Kicker n="REASON 01" title={f < L(B.infijar) ? 'السبب الأول' : 'انفجار السيرفرات'} at={f < L(B.infijar) ? 0 : L(B.infijar)} />
-      {!showStores && f >= L(B.count) && (
-        <div style={{position: 'absolute', left: 0, right: 0, top: 620, textAlign: 'center'}}>
+      {counting && (
+        <div style={{position: 'absolute', left: 0, right: 0, top: 640, textAlign: 'center'}}>
           <Counter from={L(B.count)} to={L(B.fifty) + 30} />
-          <div style={{fontFamily: fonts.label, fontWeight: 700, fontSize: 46, color: YEL, letterSpacing: '0.3em'}}>PLAYERS • SAME SECOND</div>
+          <div style={{fontFamily: fonts.label, fontWeight: 700, fontSize: 46, color: YEL, letterSpacing: '0.3em', textShadow: '0 4px 12px #000'}}>PLAYERS • SAME SECOND</div>
         </div>
       )}
       {showStores && (
-        <div style={{position: 'absolute', left: 0, right: 0, top: 560, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 70}}>
-          <Burning label="PlayStation" color="#0070d1" at={L(B.ps)} size={150} font={fonts.label} />
-          <Burning label="XBOX" color="#107c10" at={L(B.xb)} size={190} font={fonts.label} italic />
+        <div style={{position: 'absolute', left: 0, right: 0, top: 500, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 60}}>
+          <BurningConsole src="art/ps5.png" label="PS STORE" color="#2f7bff" at={L(B.ps)} h={620} />
+          <BurningConsole src="art/xbox.png" label="XBOX STORE" color="#107c10" at={L(B.xb)} h={470} />
         </div>
       )}
       {showStores && <Embers from={L(B.ps)} />}
@@ -393,29 +432,19 @@ const QueueShot: React.FC<{dur: number}> = ({dur}) => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
   const L = (x: number) => x - B.r2;
-  const pan = interpolate(f, [L(B.shops), dur], [0, -900], clamp);
   const party = f >= L(B.night);
   return (
     <Cam dur={dur} push={0.05}>
-      <AbsoluteFill style={{background: 'linear-gradient(180deg, #07051a 0%, #1a0b30 55%, #0a0612 56%, #050309 100%)'}} />
-      {/* street layer */}
-      <div style={{position: 'absolute', left: 0, top: 560, width: 3000, height: 760, transform: `translateX(${pan}px)`}}>
-        {/* store front */}
-        <div style={{position: 'absolute', left: 1500, top: 0, width: 1100, height: 620, background: '#0d0818', border: '6px solid #24123a'}}>
-          <div style={{position: 'absolute', left: 60, right: 60, top: 30, height: 120, borderRadius: 14, border: `5px solid ${C.pink}`, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontFamily: fonts.display, fontSize: 96, letterSpacing: 10, color: '#fff', textShadow: `0 0 20px ${C.pink}, 0 0 50px ${C.pink}`,
-            boxShadow: `0 0 30px ${C.pink}, inset 0 0 30px ${C.pink}`, opacity: random(`ns${Math.floor(f / 4)}`) > 0.06 ? 1 : 0.4}}>GAME STORE</div>
-          <div style={{position: 'absolute', left: 60, top: 190, display: 'flex', gap: 30}}>
-            {[0, 1, 2].map((i) => <Img key={i} src={staticFile('art/gta6_ultimate.jpg')} style={{width: 300, height: 300, boxShadow: `0 0 40px ${C.pink}88`}} />)}
-          </div>
-          <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: 120, background: 'linear-gradient(0deg, rgba(255,47,160,.25), transparent)'}} />
-        </div>
-        {/* the queue */}
-        <div style={{position: 'absolute', left: 80, top: 330, display: 'flex', alignItems: 'flex-end', gap: 26}}>
-          {Array.from({length: 22}).map((_, i) => <Person key={i} h={300 + random(`ph${i}`) * 80} seed={`q${i}`} />)}
-        </div>
-        <div style={{position: 'absolute', left: 0, top: 700, width: 3000, height: 60, background: 'linear-gradient(180deg, rgba(255,47,160,.18), transparent)'}} />
+      <AbsoluteFill style={{background: '#06030b'}} />
+      {/* REAL launch-night queue photo (GTA V launch) — slow pan from the crowd to the store */}
+      <div style={{position: 'absolute', left: 0, top: 230, width: 1932, height: 1500, transform: `translateX(${interpolate(f, [0, dur], [0, -852], clamp)}px) scale(${1.04 + 0.04 * (f / dur)})`,
+        transformOrigin: '30% 50%'}}>
+        <Img src={staticFile('art/queue_gta5.jpg')} style={{width: '100%', height: '100%', objectFit: 'cover', filter: `saturate(1.15) contrast(1.08) brightness(${f < L(B.shops) ? 0.45 : 0.8})`}} />
       </div>
+      <AbsoluteFill style={{background: `linear-gradient(180deg, #06030b 0%, rgba(6,3,11,.2) 22%, rgba(6,3,11,0) 50%, rgba(6,3,11,.5) 70%, #06030b 92%),
+        radial-gradient(ellipse 70% 40% at 50% 50%, transparent 40%, ${C.pink}22 100%)`}} />
+      <div style={{position: 'absolute', left: 40, top: 1150, background: 'rgba(0,0,0,.65)', border: '2px solid rgba(255,255,255,.25)', borderRadius: 10, padding: '6px 16px',
+        fontFamily: fonts.label, fontWeight: 600, fontSize: 30, color: 'rgba(255,255,255,.85)', letterSpacing: 2, opacity: prog(f, L(B.shops), L(B.shops) + 10)}}>● REAL • GTA V LAUNCH NIGHT</div>
       <Kicker n="REASON 02" title={f < L(B.shops) ? 'السبب الثاني' : 'طوابير منتصف الليل'} at={f < L(B.shops) ? 0 : L(B.shops)} color={C.pink} />
       {party && Array.from({length: 4}).map((_, i) => <Firework key={i} at={L(B.night) + i * 8} x={200 + i * 230} y={560 + (i % 2) * 90} />)}
       {f >= L(B.night) && (
@@ -545,6 +574,11 @@ const TrickShot: React.FC<{dur: number}> = ({dur}) => {
     <Cam dur={dur} push={0.1} shakeAt={[L(B.plus12)]}>
       <AbsoluteFill style={{background: nz ? 'radial-gradient(ellipse 80% 60% at 50% 40%, #0b2f5a, #020611 80%)' : '#030206'}} />
       {!nz && (
+        <AbsoluteFill style={{overflow: 'hidden'}}>
+          <OffthreadVideo src={staticFile('clips/gta6_robbery.mp4')} muted startFrom={120} style={{position: 'absolute', left: '50%', top: 0, height: '100%', transform: 'translateX(-50%)', filter: 'blur(8px) brightness(.3) saturate(.6)'}} />
+        </AbsoluteFill>
+      )}
+      {!nz && (
         <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
           <div style={{fontFamily: fonts.label, fontWeight: 700, fontSize: 46, color: 'rgba(255,255,255,.5)', letterSpacing: '0.5em', marginBottom: 20}}>SECRET</div>
           <div style={{fontFamily: fonts.arDisplay, fontSize: 170, color: '#fff', transform: `scale(${1 + f * 0.004})`, textShadow: '0 0 40px rgba(255,255,255,.3)'}}>الخدعة 🤫</div>
@@ -611,7 +645,7 @@ const SubShot: React.FC<{dur: number}> = ({dur}) => {
   return (
     <Cam dur={dur} push={0.06}>
       <AbsoluteFill style={{overflow: 'hidden'}}>
-        <Img src={staticFile('art/p_jason_lucia.jpg')} style={{position: 'absolute', left: '50%', top: 0, height: '75%', transform: 'translateX(-50%) scale(1.2)', filter: 'brightness(.55) saturate(1.2)'}} />
+        <OffthreadVideo src={staticFile('clips/gta6_robbery.mp4')} muted startFrom={300} style={{position: 'absolute', left: '50%', top: 0, height: '75%', transform: 'translateX(-50%) scale(1.15)', filter: 'brightness(.6) saturate(1.2)'}} />
         <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(0,0,0,.2), rgba(0,0,0,.4) 50%, #000 75%)'}} />
       </AbsoluteFill>
       <div style={{position: 'absolute', left: 0, right: 0, top: 260, textAlign: 'center'}}>
