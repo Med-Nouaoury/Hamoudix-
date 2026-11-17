@@ -13,7 +13,8 @@ import {SH, SW} from './kit';
    Cinematic dark look, hard cuts with glitch, real world map,
    seamless loop back to the hook. Voice tightened + 1.15x (42.7 s).
    ===================================================================== */
-const F = (s: number) => Math.round(s * 30);
+const SPEED = 1.15; // word timings were measured on a 1.15x take; voice is now natural speed
+const F = (s: number) => Math.round(s * SPEED * 30);
 export const S2P_LEN = F(42.68) + 12;
 
 const B = {
