@@ -4,6 +4,7 @@ Arabic gaming YouTube channel **HamoudiX** — "GAMING • WALKTHROUGHS • RETR
 Main series right now: **full GTA 6 walkthrough (تختيم GTA 6)** + Shorts around the launch.
 The owner talks to Claude in **Arabic** (Moroccan Darija / Fusha). Answer in Arabic unless asked otherwise.
 Content plan, scripts, titles, publishing settings and what was made: see `docs/CHANNEL_NOTES.md`.
+Motion-graphics style guide (approved look, timings, captions, sound, building blocks): see `docs/MOTION_GUIDE.md`.
 Same owner also runs the older channel **Sky Gaming** (project `SkyGaming-Motion` on their PC, `C:\Users\simon\Desktop\Youtube\`).
 
 ## How the owner wants to work (non-negotiable)
